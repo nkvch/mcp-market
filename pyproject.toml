@@ -1,0 +1,39 @@
+[tool.poetry]
+name = "mcp-market"
+version = "0.1.0"
+description = "FastAPI backend for MCP Market"
+authors = ["Stanislau Stankevich <nkvch.st@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "^0.115.11"
+uvicorn = "^0.34.0"
+pydantic = "^2.10.6"
+python-dotenv = "^1.0.1"
+mcp = {extras = ["cli"], version = "^1.4.1"}
+httpx = "^0.28.1"
+psutil = "^7.0.0"
+requests = "^2.32.3"
+e2b-code-interpreter = "1.0.4b"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.5"
+black = "^25.1.0"
+isort = "^6.0.1"
+flake8 = "^7.1.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+start = "mcp_market.main:start"
+
+[project]
+name = "mcp-market"
+version = "0.1.0"
+description = "FastAPI backend for MCP Market"
+authors = [{ name = "Stanislau Stankevich", email = "nkvch.st@gmail.com" }]
+readme = "README.md"
+
