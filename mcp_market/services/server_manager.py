@@ -12,7 +12,9 @@ from ..models.server import Server, ServerCreate
 from datetime import datetime
 from e2b_code_interpreter import Sandbox
 from contextlib import AsyncExitStack
-
+import httpx
+from httpx_sse import aconnect_sse
+from fastapi.responses import StreamingResponse
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from mcp.client.sse import sse_client
@@ -119,6 +121,71 @@ class ServerManager:
         self.servers[server.id] = server
         print(f"Added server {server.id} to manager. Total servers: {len(self.servers)}")
         return server
+    
+    async def get_sse(self, server_id: str):
+        """Get a proxy to the SSE stream for a specific server"""
+        server = self.servers.get(server_id)
+        if not server or not server.sandbox_id:
+            raise ValueError("Server not found")
+        
+        # Return a streaming response that proxies the SSE connection
+        from fastapi.responses import StreamingResponse
+        
+        async def event_stream():
+            """Generator that proxies the SSE events from the sandbox to the client"""
+            # Create a client to connect to the sandbox SSE endpoint
+            async with httpx.AsyncClient() as client:
+                # Use a much longer timeout for SSE connections
+                timeout = httpx.Timeout(5.0, read=5*60*60)  # 1 hour read timeout
+                
+                async with aconnect_sse(client, "GET", server.url, timeout=timeout) as event_source:
+                    # Check if connection was successful
+                    event_source.response.raise_for_status()
+                    
+                    # Now forward each SSE event from the remote server
+                    async for sse in event_source.aiter_sse():
+                        # Skip the original endpoint event since we've already sent our own
+                        print("SSE event", sse)
+                        if sse.event == "endpoint":
+                            print("Skipping endpoint event", sse)
+                            # First, send a custom endpoint event to tell the client where to send messages
+                            # This is crucial - the client is waiting for this!
+                            base_path = f"/servers/{server_id}"
+                            endpoint_event = [
+                                "event: endpoint",
+                                f"data: {base_path}{sse.data}",
+                                "",
+                                ""
+                            ]
+                            yield "\n".join(endpoint_event)
+                            continue
+                            
+                        # Reconstruct the SSE format
+                        output = []
+                        if sse.event:
+                            output.append(f"event: {sse.event}")
+                        if sse.id:
+                            output.append(f"id: {sse.id}")
+                        if sse.retry:
+                            output.append(f"retry: {sse.retry}")
+                        # Data can be multi-line, handle each line
+                        for line in sse.data.splitlines():
+                            output.append(f"data: {line}")
+                        # End with an empty line as per SSE spec
+                        output.append("")
+
+                        yield "\n".join(output)
+        
+        # Return a streaming response with the appropriate headers
+        return StreamingResponse(
+            event_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",  # Disable buffering in Nginx
+            }
+        )
     
     async def list_servers(self) -> List[Server]:
         """List all registered servers"""

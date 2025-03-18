@@ -78,28 +78,28 @@ def get_server_manager():
 #     except Exception as e:
 #         raise HTTPException(status_code=502, detail=f"Error proxying to MCP server: {str(e)}")
 
-def start_ngrok(port):
-    """Start ngrok tunnel for the main API"""
-    ngrok_cmd = f"ngrok http {port} --log=stdout"
-    subprocess.Popen(ngrok_cmd, shell=True)
+# def start_ngrok(port):
+#     """Start ngrok tunnel for the main API"""
+#     ngrok_cmd = f"ngrok http {port} --log=stdout"
+#     subprocess.Popen(ngrok_cmd, shell=True)
     
-    # Wait for tunnel to be established
-    time.sleep(2)
+#     # Wait for tunnel to be established
+#     time.sleep(2)
     
-    try:
-        # Get tunnel URL from ngrok API
-        response = requests.get("http://localhost:4040/api/tunnels")
-        tunnels = response.json()["tunnels"]
-        for tunnel in tunnels:
-            if str(port) in tunnel["config"]["addr"]:
-                public_url = tunnel["public_url"]
-                print(f"\n🚀 Main API available at: {public_url}\n")
-                return
-    except Exception:
-        print("\n⚠️ Failed to get ngrok URL. Make sure ngrok is installed and running.\n")
+#     try:
+#         # Get tunnel URL from ngrok API
+#         response = requests.get("http://localhost:4040/api/tunnels")
+#         tunnels = response.json()["tunnels"]
+#         for tunnel in tunnels:
+#             if str(port) in tunnel["config"]["addr"]:
+#                 public_url = tunnel["public_url"]
+#                 print(f"\n🚀 Main API available at: {public_url}\n")
+#                 return
+#     except Exception:
+#         print("\n⚠️ Failed to get ngrok URL. Make sure ngrok is installed and running.\n")
 
-# Start ngrok in a separate thread
-threading.Thread(target=start_ngrok, args=(8000,), daemon=True).start()
+# # Start ngrok in a separate thread
+# threading.Thread(target=start_ngrok, args=(8000,), daemon=True).start()
 
 def start():
     """Entry point for the application script"""
